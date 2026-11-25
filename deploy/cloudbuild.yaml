@@ -1,0 +1,60 @@
+# -------------------------------------------------------------
+# Google Cloud Build Pipeline for NorthStar FDE Capstone
+# Deploys container to Google Cloud Run in Region asia-south1 (Mumbai)
+# -------------------------------------------------------------
+
+steps:
+  # 1. Run automated unit tests before building container
+  - name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -r requirements.txt
+        pytest tests/test_pipeline.py -v
+
+  # 2. Build container image in Google Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/northstar-repo/intake-gateway:$COMMIT_SHA'
+      - '-f'
+      - 'deploy/Dockerfile'
+      - '.'
+
+  # 3. Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/northstar-repo/intake-gateway:$COMMIT_SHA'
+
+  # 4. Deploy to Serverless Cloud Run in Mumbai (asia-south1)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'northstar-intake-service'
+      - '--image'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/northstar-repo/intake-gateway:$COMMIT_SHA'
+      - '--region'
+      - 'asia-south1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+      - '--set-env-vars'
+      - 'APP_ENV=production,GCP_REGION=asia-south1,GEMINI_MODEL=gemini-1.5-flash'
+
+images:
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/northstar-repo/intake-gateway:$COMMIT_SHA'
+
+timeout: '900s'

@@ -1,0 +1,11 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/slabspro-slabsuser41/cloud-run-source-deploy/northstar-intake-service:v1'
+      - '.'
+images:
+  - 'asia-south1-docker.pkg.dev/slabspro-slabsuser41/cloud-run-source-deploy/northstar-intake-service:v1'
+options:
+  logging: CLOUD_LOGGING_ONLY
